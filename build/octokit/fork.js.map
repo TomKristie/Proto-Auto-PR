@@ -1,1 +1,0 @@
-{"version":3,"file":"fork.js","sourceRoot":"","sources":["../../src/octokit/fork.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA,sCAAwC;AAExC,IAAM,OAAO,GAAG,IAAI,cAAO,EAAE,CAAC;AAE9B,iFAAiF;AAGjF,SAA8B,IAAI;;;YAC9B,OAAO,CAAC,KAAK,CAAC,IAAI,CAAC;gBACf,KAAK,EAAE,uBAAuB;gBAC9B,IAAI,EAAE,8GAA8G;aACvH,CAAC,CAAA;;;;CACL;AALD,uBAKC"}
