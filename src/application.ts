@@ -17,6 +17,7 @@ class Application {
     git!: Octokit;
     log!: Logger;
     credentials!: TokenAuth | ProbotAuth;
+    branchName: string;
 
     constructor(params: Parameters) {
         this.hasWriteAccess = params.hasWriteAccess;
@@ -24,6 +25,7 @@ class Application {
         this.setupLogger(params);
         this.setupAuthentication(params);
         this.log.info("done setup")
+        this.branchName = "third-party"
     }
 
     private setupLogger(params: Parameters) {

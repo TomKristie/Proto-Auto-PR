@@ -8,13 +8,15 @@ class Changes {
     private app: Application;
     private owner: string;
     private repoName: string;
-    private dir: string;
+    private tempDir: string;
+    private tempDirRepo: string;
 
     constructor (app: Application, owner: string, repoName: string) {
         this.app = app;
         this.owner = owner;
         this.repoName = repoName;
-        this.dir = Changes.generateRepoDir(owner, repoName);
+        this.tempDir = Changes.generateRepoDir(owner, repoName);
+        this.tempDirRepo = `${this.tempDir}/${this.repoName}`;
         this.get = this.get.bind(this);
         this.gitclone = this.gitclone.bind(this);
         this.parseChanges = this.parseChanges.bind(this);
@@ -22,17 +24,17 @@ class Changes {
     }
 
     private static generateRepoDir(owner: string, repoName: string) {
-        return `${owner}-${repoName}`
+        return `${Application.repoRoot}/${owner}-${repoName}`
     }
     
     private gitclone() {
         try {
             const accessToken: string = (this.app.credentials as TokenAuth).accessToken;
             execSync(
-                `mkdir ${this.dir} &&\
-                cd ${this.dir} &&\
+                `mkdir ${this.tempDir} &&\
+                cd ${this.tempDir} &&\
                 git clone https://${accessToken}@github.com/${this.owner}/${this.repoName}.git`,
-                { cwd: Application.repoRoot }
+
             );
         } catch(err) {
             this.app.log.error(`Could not git clone, ${err}`);
@@ -43,19 +45,19 @@ class Changes {
      * Get changes and their contents
      */
     private parseChanges(): Files {
-        console.log(`${Application.repoRoot}/${this.dir}`)
         // a list of the paths of files that have been updated
         let paths: string[] = execSync(
             "git diff --name-only",
-            { cwd: `${Application.repoRoot}/${this.dir}/${this.repoName}`}
+            { cwd: this.tempDirRepo }
         ).toString().split("\n");
+        paths.pop();
 
         // get updated file contents
         const changes: Files = {};
         for (let i = 0; i < paths.length; i++) {
             const fileContents: string = execSync(
                 `cat ${paths[i]}`,
-                { cwd: `${Application.repoRoot}/${this.dir}/${this.repoName}`}
+                { cwd: this.tempDirRepo }
             ).toString();
             changes[paths[i]] = fileContents;
         }
@@ -66,7 +68,7 @@ class Changes {
      * Remove any cached data
      */
     private clean() {
-        execSync(`rm -rf ${this.dir}`, { cwd: Application.repoRoot });
+        execSync(`rm -rf ${this.tempDir}`);
     }
     
     
@@ -74,7 +76,7 @@ class Changes {
         return new Promise((resolve, reject) => {
             try {
                 this.gitclone();
-                handleChange();
+                handleChange(this.tempDirRepo);
                 const files: Files = this.parseChanges();
                 resolve(files);
             } catch(err) {

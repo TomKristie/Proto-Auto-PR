@@ -2,6 +2,7 @@ import { Changes } from "../get-changes";
 import { Application } from "../application";
 import { Files } from "../types";
 import { REPLServer } from "repl";
+import { resolve } from "dns";
 const mainBranch = "master";
 
 class ForkAndBranch {
@@ -29,38 +30,38 @@ class ForkAndBranch {
         };
     }
 
-    private async branch(owner: string, repo: string) {
+    private async branch(owner: string, repo: string, ref: string) {
+        let mainBranchHeadSHA: string | undefined;
         try {
-            const mainBranchHeadSHA = (await this.app.octokit.repos.listBranches({
+            mainBranchHeadSHA = (await this.app.octokit.repos.listBranches({
                 owner,
                 repo
             })).data.find(branch => branch.name == mainBranch)?.commit.sha;
+            this.app.log.debug(`Main branch SHA: ${mainBranchHeadSHA}`);
             if (mainBranchHeadSHA) {
-                //const branchName = `third-party-${Date.now()}`;
-                const branchName = "third-party";
                 const newBranch = (await this.app.octokit.git.createRef({
                     owner,
                     repo,
-                    ref: `refs/heads/${branchName}`,
+                    ref,
                     sha: mainBranchHeadSHA
                 })).data;
                 this.app.log.info("branch created with head at: ",mainBranchHeadSHA);
                 this.app.log.debug("branch data:\n", newBranch);
-                return { branchSHA: mainBranchHeadSHA, branchUrl: newBranch.url, branchName }
+                return { branchSHA: mainBranchHeadSHA, branchName: this.app.branchName }
             }
-            return { branchSHA: mainBranchHeadSHA, branchUrl: undefined }
+            return { branchSHA: mainBranchHeadSHA, branchName: this.app.branchName }
         } catch (err) {
             this.app.log.error(`Error in creating branch ${err}`);
-            return {};
+            return { branchSHA: mainBranchHeadSHA, branchName: this.app.branchName };
         }
     }
-    public async run() {
+    public async run(ref: string) {
         const { newRepo , newOwner } = await this.fork();
         if (!(newRepo && newOwner)) {
             return {};
         }
-        const { branchSHA, branchUrl, branchName } = await this.branch(newOwner, newRepo);
-        if (!(branchSHA && branchUrl && branchName)) {
+        const { branchSHA, branchName } = await this.branch(newOwner, newRepo, ref);
+        if (!(branchSHA && branchName)) {
             return {};
         }
         
@@ -84,13 +85,32 @@ class PushAndPR {
         this.app = app;
     }
 
+    // private async createBlobs(changes: Files, owner: string, repoName: string) {
+    //     const self = this;
+    //     const blobs: Promise<any>[] = [];
+    //     for (const path in changes) {
+    //         const promise = new Promise(async (resolve, reject) => {
+    //             const content = changes[path];
+    //             const blobSHA = (await self.app.octokit.git.createBlob({
+    //                 owner,
+    //                 repo: repoName,
+    //                 content
+    //             })).data.sha;
+    //             if (!blobSHA) reject(null);
+    //             resolve({ path, sha: blobSHA });
+    //         });
+    //         blobs.push(promise);
+    //     }
+    //     return Promise.all(blobs);
+    // }
+
     /**
      * Create a github tree and return its SHA
      * @param changes 
      * @param owner 
      * @param repoName 
      */
-    private async createTree(changes: Files, owner: string, repoName: string): Promise<string> {
+    private async createTree(changes: Files, owner: string, repoName: string, branchSHA: string): Promise<string> {
         const tree: GitCreateTreeParamsTree[] = [];
         for (const path in changes) {
             tree.push({
@@ -100,27 +120,53 @@ class PushAndPR {
                 content: changes[path]
             });
         }
+        const oldTreeSHA = (await this.app.octokit.git.getCommit({
+            owner: owner,
+            repo: repoName,
+            commit_sha: branchSHA
+        })).data.tree.sha;
+        // tree.push({
+        //     path: "",
+        //     mode: "040000",
+        //     type: "tree",
+        //     sha: oldTreeSHA
+        // });
         const treeSHA = (await this.app.octokit.git.createTree({
             owner: owner,
             repo: repoName,
-            tree: tree
+            tree: tree,
+            base_tree: oldTreeSHA
         })).data.sha;
         return treeSHA;
     }
 
     private async commitToBranch(branchSHA: string, treeSHA: string, owner: string, repoName: string) {
-        this.app.octokit.git.createCommit({
+        const commitData = await this.app.octokit.git.createCommit({
             owner: owner,
             repo: repoName,
             message: "Third-Party Changes",
             tree: treeSHA,
             parents: [ branchSHA ]
         });
+        console.log(commitData);
+        return commitData.data.sha;
     }
 
 
-    private async updateBranchReference() {
-
+    private async updateBranchReference(
+        newSHA: string,
+        ref: string,
+        owner: string,
+        repo: string
+    ) {
+        console.log(newSHA, ref, owner, repo)
+        const data = await this.app.octokit.git.updateRef({
+            owner,
+            repo,
+            ref: `heads/${this.app.branchName}`,
+            sha: newSHA
+        });
+        console.log(data)
     }
     
     private async makePR(
@@ -138,16 +184,19 @@ class PushAndPR {
         //
     }
     
-    public async run(changes: Files, owner: string, repoName: string, branchSHA: string) {
-        const treeSHA = await this.createTree(changes, owner, repoName);
+    public async run(changes: Files, owner: string, repoName: string, branchSHA: string, ref: string) {
+        // const blobs = await this.createBlobs(changes, owner, repoName);
+        const treeSHA = await this.createTree(changes, owner, repoName, branchSHA);
         if (!treeSHA) return;
-        await this.commitToBranch(branchSHA, treeSHA, owner, repoName);
-        await this.updateBranchReference();
+        const commitSHA = await this.commitToBranch(branchSHA, treeSHA, owner, repoName);
+        console.log(`tree sha: ${treeSHA}, `)
+        await this.updateBranchReference(commitSHA, ref, owner, repoName);
     }
 
 }
 
 async function runGitHub(app: Application) {
+    const ref = `refs/heads/${app.branchName}`;
     app.log.debug("Starting github workflow")
     // TODO configure this
     // =============================================================
@@ -158,11 +207,11 @@ async function runGitHub(app: Application) {
     const changeHandler = new Changes(app, ownerOriginal, repoOriginal)
     const changes = await changeHandler.get();
     // fork and branch
-    const { branchName, branchSHA, owner, repoName } = await (new ForkAndBranch(app, ownerOriginal, repoOriginal)).run();
-    if (!(branchName && owner && repoName && branchSHA)) return;
+    const { branchSHA, owner, repoName } = await (new ForkAndBranch(app, ownerOriginal, repoOriginal)).run(ref);
+    if (!(owner && repoName && branchSHA)) return;
     // create PR
     const pushPRHandler = new PushAndPR(app);
-    await pushPRHandler.run(changes, owner, repoName, branchSHA);
+    await pushPRHandler.run(changes, owner, repoName, branchSHA, ref);
 }
 
 export { runGitHub }

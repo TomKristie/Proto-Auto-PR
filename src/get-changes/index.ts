@@ -18,7 +18,6 @@ class Changes {
                 break;
             }
             case (Flavour.CLI): {
-                app.log.debug("CLI HIT")
                 change = new CLIChanges(app, owner, repoName);
                 this.get = change.get;
                 break;
@@ -34,7 +33,7 @@ class Changes {
             }
         }
 
-        app.log.debug("Done 3p changes");
+        app.log.debug("Done third-party changes");
     }
 }
 
