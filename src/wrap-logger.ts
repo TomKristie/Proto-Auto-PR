@@ -1,6 +1,46 @@
-import { Logger as Node_Logger } from "logger";
+import Logger from 'bunyan'
+import bunyanFormat from 'bunyan-format'
+import supportsColor from 'supports-color'
+function toBunyanLogLevel(level: string) {
+  switch (level) {
+    case 'info':
+    case 'trace':
+    case 'debug':
+    case 'warn':
+    case 'error':
+    case 'fatal':
+    case undefined:
+      return level
+    default:
+      throw new Error('Invalid log level')
+  }
+}
 
-var log = new Node_Logger()
-type Logger = Node_Logger;
+function toBunyanFormat(format: string) {
+  switch (format) {
+    case 'short':
+    case 'long':
+    case 'simple':
+    case 'json':
+    case 'bunyan':
+    case undefined:
+      return format
+    default:
+      throw new Error('Invalid log format')
+  }
+}
 
-export { log, Logger }
+const log = new Logger({
+  level: toBunyanLogLevel(process.env.LOG_LEVEL || 'info'),
+  name: 'my-app',
+  stream: new bunyanFormat({
+    color: supportsColor.stdout,
+    levelInString: !!process.env.LOG_LEVEL_IN_STRING,
+    outputMode: toBunyanFormat(process.env.LOG_FORMAT || 'short')
+  })
+});
+
+export {
+  log,
+  Logger
+}

@@ -1,0 +1,45 @@
+class Workflow {
+    
+    // private readonly app: Application;
+
+    // constructor(app: Application) {
+    //     this.app = app;
+    // }
+
+    // private static generateRepoDir(owner: string, repoName: string, branchName: string) {
+    //     return `${owner}-${repoName}-${branchName}`
+    // }
+
+    // private gitclone(owner: string, repoName: string, branchName: string) {
+    //     const dir = Workflow.generateRepoDir(owner, repoName, branchName);
+    //     execSync(
+    //         `mkdir ${dir} &&\
+    //         cd ${dir} &&\
+    //         git clone https://${process.env.ACCESS_TOKEN}@github.com/TomKristie/HelloWorld.git`, {
+    //             cwd: this.app.repoRoot
+    //         }
+    //     );
+    // }
+
+    
+
+    // private clean(owner: string, repoName: string, branchName: string) {
+    //     exec(`rm -rf ${Workflow.generateRepoDir(owner, repoName, branchName)}`, { cwd: Application.repoRoot });
+    // }
+
+    // private async pushToFork(forkOwner: string, forkedRepo: string) {
+
+    // }
+    
+
+    
+    // public async run() {
+    //     //await this.gitclone(forkedOwner, forkedRepo, branchName);
+        
+    //     // const fsFiles: Files = await sendThirdParty(app, "http://");
+    //     // // await updateLocalFS(app, fsFiles);
+    //     // await pushToFork(app, owner, repo);
+    //     // await makePR(app, owner, repo);
+    //     this.app.log.debug("Done workflow");
+    // }
+}

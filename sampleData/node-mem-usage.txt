@@ -1,0 +1,15 @@
+in bytes
+
+  rss: 41758720,
+  heapTotal: 10231808,
+  heapUsed: 6580672,
+  external: 1436015,
+  arrayBuffers: 25766
+
+in mib
+
+  rss: 39.82421875,
+  heapTotal: 9.7578125,
+  heapUsed: 6.275817871,
+  external: 1.369490623,
+  arrayBuffers: 0.024572372

@@ -1,0 +1,14 @@
+{
+    "writeAccess": false,
+    "flavour": "CLI",
+    "logLevel": "debug",
+    "thirdParties": {
+        "todo-some-gcp-url": {
+            "repoName": "Forkable",
+            "owner": "TomKristie",
+            "includes": ["*"],
+            "excludes": [],
+            "rootDirs": ["."]
+        }
+    }
+}

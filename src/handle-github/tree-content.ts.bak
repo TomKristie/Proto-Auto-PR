@@ -1,0 +1,94 @@
+import { GitGetTreeResponseData } from "@octokit/types"
+import { Application } from "../application";
+import * as HTTPS from "https";
+import { Files } from "../types";
+
+const mainBranch = "master";
+
+class GetRawRepo {
+
+    
+    private readonly app: Application;
+
+    constructor(app: Application) {
+        this.app = app;
+    }
+
+    private async getFiles(owner: string, repo: string, tree_sha: string) {
+        const { tree, truncated } = (await this.app.octokit.git.getTree({
+            owner,
+            repo,
+            tree_sha,
+            recursive: "true"
+        })).data;
+        // TODO - file size
+        if (truncated) {
+            await getTruncatedTreeData();
+        }
+        else {
+            await getTreeData(mainBranch, owner, repo, tree);
+        }
+    }
+
+    public async run(): Promise<Files> {
+        return { "s": "23"};
+    }
+}
+
+/**
+ * GitHub repository file changes will be an object stored in the heap
+ * @returns the capacity of file change data that can be stored in the heap
+ */
+function heapCapacity(): number {
+    // The process.memoryUsage() method returns an object describing the memory usage of the Node.js process measured in bytes.
+    const availBytes = process.memoryUsage().heapTotal - process.memoryUsage().heapUsed;
+    const availGiB = availBytes / 1024 ** 3;
+    return availGiB;
+}
+
+function getRawFile(fileUrl: string) {
+    return new Promise((resolve, reject) => {
+        var responseMsg = '';
+        HTTPS.get(fileUrl, (resp) => {
+            resp.on('data', (chunk) => {
+                responseMsg += chunk;
+            });
+            resp.on('end', () => {
+                resolve(JSON.parse(responseMsg).data);
+            });
+        }).on("error", (err) => {
+            reject(err);
+        });
+    });
+}
+
+function rawFileUrl(branch: string, owner: string, repoName: string, path: string): string {
+    return `https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${path}`;
+}
+
+function getTreeData(
+    branch: string,
+    owner: string,
+    repo: string,
+    tree: GitGetTreeResponseData["tree"]
+) {
+    const filePromises: Promise<any>[] = [];
+    let totalFileSizesBytes = 0;
+    const capacity = heapCapacity();
+    for (let i = 0; i < tree.length; i++) {
+        if (tree[i].size + totalFileSizesBytes >= capacity) {
+            // TODO
+        } else {
+            const fileUrl = rawFileUrl(branch, owner, repo, tree[i].path);
+            filePromises.push(getRawFile(fileUrl));
+            totalFileSizesBytes += tree[i].size;
+        }
+    }
+}
+
+function getTruncatedTreeData() {
+
+}
+
+
+export { GetRawRepo }
